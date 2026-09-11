@@ -22,10 +22,29 @@ oikeana Android-sovelluksena (`android/`, WebView-kääre).
 
 ## Pelaaminen heti (ilman APK:ta)
 
-1. Tarjoile `web/`-kansio millä tahansa web-palvelimella, esim.
-   `npx http-server web -p 8080`, tai julkaise se GitHub Pagesissa.
-2. Avaa osoite puhelimen Chromessa.
-3. Valitse Chromen valikosta **Lisää aloitusnäytölle** – peli asentuu
+### GitHub Pages
+
+Repo sisältää työnkulun (`.github/workflows/pages.yml`), joka julkaisee
+`web/`-kansion automaattisesti GitHub Pagesiin, kun peliin tulee muutoksia.
+Käyttöönotto kerran:
+
+1. Repon on oltava julkinen (tai tilillä maksullinen GitHub-tilaus), koska
+   Pages ei toimi ilmaisen tilin yksityisissä repoissa.
+   *Settings → General → Danger Zone → Change repository visibility.*
+2. *Settings → Pages → Build and deployment → Source:* valitse **GitHub Actions**.
+3. Käynnistä työnkulku: *Actions → "Julkaise peli GitHub Pagesiin" → Run workflow*
+   (tai pushaa muutos `web/`-kansioon).
+4. Peli on osoitteessa `https://<käyttäjä>.github.io/Boulder-Dash/`.
+
+### Oma palvelin
+
+Tarjoile `web/`-kansio millä tahansa web-palvelimella, esim.
+`npx http-server web -p 8080`.
+
+### Asennus puhelimeen
+
+1. Avaa osoite puhelimen Chromessa.
+2. Valitse Chromen valikosta **Lisää aloitusnäytölle** – peli asentuu
    koko ruudun PWA-sovellukseksi ja toimii jatkossa myös offline-tilassa.
 
 ## Android-sovelluksen (APK) kääntäminen
