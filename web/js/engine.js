@@ -39,6 +39,7 @@
       this.cells = cells;
       this.aux = new Uint8Array(this.w * this.h);
       this.scanned = new Uint8Array(this.w * this.h);
+      this.from = new Uint8Array(this.w * this.h);   // mistä suunnasta esine saapui tällä tickillä (animointiin)
       this.hooks = hooks || {};
       this.rng = mulberry32((def.seed * 7919 + 12345) | 0);
 
@@ -85,6 +86,14 @@
       this.scanned[i] = 1;
     }
     sound(name) { if (this.hooks.onSound) this.hooks.onSound(name); }
+    fx(name, x, y) { if (this.hooks.onEffect) this.hooks.onEffect(name, x, y); }
+
+    /** Siirtää esineen ruudusta toiseen ja merkitsee liikkeen suunnan animointia varten. */
+    move(x, y, nx, ny, t, a) {
+      this.set(x, y, T.EMPTY);
+      this.set(nx, ny, t, a);
+      this.from[ny * this.w + nx] = 1 + (nx - x + 1) + 3 * (ny - y + 1);
+    }
 
     isRounded(t) {
       return t === T.BOULDER || t === T.DIAMOND || t === T.WALL;
@@ -94,6 +103,7 @@
     // ---- Räjähdys 3x3 ----
     explode(cx, cy, kind) {
       this.sound('explosion');
+      this.fx('explosion', cx, cy);
       for (let y = cy - 1; y <= cy + 1; y++) {
         for (let x = cx - 1; x <= cx + 1; x++) {
           const t = this.get(x, y);
@@ -120,8 +130,7 @@
       const below = this.get(x, y + 1);
 
       if (below === T.EMPTY) {
-        this.set(x, y, T.EMPTY);
-        this.set(x, y + 1, fallT);
+        this.move(x, y, x, y + 1, fallT);
         return;
       }
       if (falling) {
@@ -149,6 +158,7 @@
         if (this.isRounded(below) && this.tryRoll(x, y, fallT)) return;
         this.cells[this.idx(x, y)] = restT;
         this.sound(isBoulder ? 'boulder' : 'diamondLand');
+        if (isBoulder) this.fx('land', x, y);
         return;
       }
       // lepäävä esine pyöreän päällä vierii
@@ -157,10 +167,10 @@
 
     tryRoll(x, y, fallT) {
       if (this.get(x - 1, y) === T.EMPTY && this.get(x - 1, y + 1) === T.EMPTY) {
-        this.set(x, y, T.EMPTY); this.set(x - 1, y, fallT); return true;
+        this.move(x, y, x - 1, y, fallT); return true;
       }
       if (this.get(x + 1, y) === T.EMPTY && this.get(x + 1, y + 1) === T.EMPTY) {
-        this.set(x, y, T.EMPTY); this.set(x + 1, y, fallT); return true;
+        this.move(x, y, x + 1, y, fallT); return true;
       }
       return false;
     }
@@ -180,13 +190,11 @@
       const turn = (t === T.FIREFLY) ? 3 : 1; // tulikärpänen kääntyy vasemmalle, perhonen oikealle
       const d1 = (dir + turn) & 3;
       if (this.get(x + DX[d1], y + DY[d1]) === T.EMPTY) {
-        this.set(x, y, T.EMPTY);
-        this.set(x + DX[d1], y + DY[d1], t, d1);
+        this.move(x, y, x + DX[d1], y + DY[d1], t, d1);
         return;
       }
       if (this.get(x + DX[dir], y + DY[dir]) === T.EMPTY) {
-        this.set(x, y, T.EMPTY);
-        this.set(x + DX[dir], y + DY[dir], t, dir);
+        this.move(x, y, x + DX[dir], y + DY[dir], t, dir);
         return;
       }
       this.aux[i] = (dir + 4 - turn) & 3; // käänny toiseen suuntaan paikallaan
@@ -219,8 +227,7 @@
       if (dx !== 0) this.rf.facing = dx;
 
       const move = () => {
-        this.set(x, y, T.EMPTY);
-        this.set(nx, ny, T.ROCKFORD);
+        this.move(x, y, nx, ny, T.ROCKFORD);
         this.rf.x = nx; this.rf.y = ny; this.rf.moved = true;
       };
 
@@ -229,7 +236,7 @@
         case T.DIRT: move(); this.sound('dig'); break;
         case T.DIAMOND:
         case T.DIAMOND_F:
-          this.collectDiamond(); move(); break;
+          this.collectDiamond(nx, ny); move(); break;
         case T.BOULDER:
           if (dy === 0 && this.get(nx + dx, ny) === T.EMPTY) {
             this.set(nx + dx, ny, T.BOULDER);
@@ -249,8 +256,9 @@
       }
     }
 
-    collectDiamond() {
+    collectDiamond(x, y) {
       this.collected++;
+      this.fx('diamond', x, y);
       this.score += (this.collected > this.needed) ? this.def.extra : this.def.value;
       this.sound('diamond');
       if (!this.exitOpen && this.collected >= this.needed) this.openExit();
@@ -259,7 +267,10 @@
     openExit() {
       this.exitOpen = true;
       for (let i = 0; i < this.cells.length; i++) {
-        if (this.cells[i] === T.EXIT_CLOSED) this.cells[i] = T.EXIT_OPEN;
+        if (this.cells[i] === T.EXIT_CLOSED) {
+          this.cells[i] = T.EXIT_OPEN;
+          this.fx('exitOpen', i % this.w, (i / this.w) | 0);
+        }
       }
       this.sound('exitOpen');
     }
@@ -269,6 +280,7 @@
       this.tickCount++;
       this.stateTicks++;
       this.scanned.fill(0);
+      this.from.fill(0);
       this.amoeba.count = 0;
       this.amoeba.canGrow = false;
 

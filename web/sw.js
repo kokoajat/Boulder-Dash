@@ -1,10 +1,12 @@
 /* Boulder Dash - service worker: peli toimii myös ilman verkkoyhteyttä. */
-const CACHE = 'boulderdash-v1';
+// __BUILD__ korvataan julkaisussa commitin tunnisteella, jolloin uusi versio päivittyy laitteisiin.
+const CACHE = 'boulderdash-__BUILD__';
 const FILES = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
-  './js/sprites.js', './js/engine.js', './js/caves.js', './js/storage.js',
+  './js/sprites.js', './js/sprites-modern.js', './js/engine.js', './js/caves.js', './js/storage.js',
   './js/audio.js', './js/input.js', './js/main.js',
   './icons/icon-192.png', './icons/icon-512.png',
+  './icons/icon-maskable-192.png', './icons/icon-maskable-512.png',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

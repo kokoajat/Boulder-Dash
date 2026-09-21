@@ -17,6 +17,8 @@ oikeana Android-sovelluksena (`android/`, WebView-kääre).
 - Ohjaus ruudun alareunassa, valittavissa asetuksista:
   - **Nuolinäppäimet** (d-pad) – peukaloa voi liu'uttaa painikkeelta toiselle.
   - **Peukalojoystick** – kosketa mihin tahansa ohjausalueella ja vedä haluttuun suuntaan.
+- Kaksi grafiikkatyyliä: **Moderni** (resoluutiosta riippumaton vektorigrafiikka, sulava
+  liike, partikkelit) ja **Retro** (8×8-pikseligrafiikka).
 - Näppäimistöllä (nuolet / WASD, Esc = tauko) peli toimii myös tietokoneella.
 - Syntetisoidut retroäänet (kytkettävissä pois), toimii ilman verkkoyhteyttä.
 
@@ -44,8 +46,12 @@ Tarjoile `web/`-kansio millä tahansa web-palvelimella, esim.
 ### Asennus puhelimeen
 
 1. Avaa osoite puhelimen Chromessa.
-2. Valitse Chromen valikosta **Lisää aloitusnäytölle** – peli asentuu
-   koko ruudun PWA-sovellukseksi ja toimii jatkossa myös offline-tilassa.
+2. Paina valikon painiketta **Asenna sovellus puhelimeen** (näkyy, kun selain
+   tarjoaa asennusta) tai valitse Chromen valikosta **Lisää aloitusnäytölle**.
+   Peli asentuu koko ruudun PWA-sovellukseksi ja toimii jatkossa myös offline-tilassa.
+3. Uudet versiot päivittyvät automaattisesti: service worker versioidaan
+   jokaisessa julkaisussa, ja peli lataa uuden version seuraavalla käynnistyksellä
+   tai valikkoon palattaessa.
 
 ## Android-sovelluksen (APK) kääntäminen
 
@@ -72,7 +78,8 @@ web/                 Peli (HTML5)
   css/style.css      Ulkoasu (mobiili ensin, safe area -marginaalit)
   js/engine.js       Luolan fysiikka ja säännöt
   js/caves.js        Luolien määrittelyt ja generointi
-  js/sprites.js      8x8 pikseligrafiikka
+  js/sprites.js      8x8 pikseligrafiikka (retro)
+  js/sprites-modern.js  Vektorigrafiikka (moderni)
   js/input.js        D-pad, joystick ja näppäimistö
   js/audio.js        Äänet (WebAudio)
   js/storage.js      Tallennus (localStorage)

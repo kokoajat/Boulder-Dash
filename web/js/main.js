@@ -3,14 +3,18 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
 
   const app = {
-    save: null, sprites: null, tile: 32, dpr: 1,
+    save: null, sprites: null, spriteKey: '', tile: 32, dpr: 1,
     cave: null, level: 1, mode: 'menu', // menu | intro | play | pause | dead | won
     cam: { x: 0, y: 0, init: false }, acc: 0, last: 0,
     hud: { d: '', t: '', s: '', c: '' },
+    particles: [], shake: 0, bgPattern: null,
+    installPrompt: null, updateReady: false,
   };
+
+  const MOVERS = new Set([T.BOULDER, T.BOULDER_F, T.DIAMOND, T.DIAMOND_F, T.FIREFLY, T.BUTTERFLY, T.ROCKFORD]);
 
   // ---------- Alustus ----------
   function init() {
@@ -35,36 +39,38 @@
 
     $('#btnPause').addEventListener('click', () => { if (app.mode === 'play') pauseGame(); });
     $('#btnReset').addEventListener('click', resetProgress);
-    $('#optDpad').addEventListener('click', () => setControls('dpad'));
-    $('#optJoy').addEventListener('click', () => setControls('joystick'));
-    $('#optSound').addEventListener('click', toggleSound);
+    $('#optDpad').addEventListener('click', () => setSetting('controls', 'dpad'));
+    $('#optJoy').addEventListener('click', () => setSetting('controls', 'joystick'));
+    $('#optModern').addEventListener('click', () => setSetting('gfx', 'modern'));
+    $('#optRetro').addEventListener('click', () => setSetting('gfx', 'retro'));
+    $('#optSound').addEventListener('click', () => setSetting('sound', !app.save.settings.sound));
     $('#btnContinue').addEventListener('click', () => startLevel(app.save.selected));
     $('#version').textContent = 'v' + VERSION;
 
+    setupInstall();
+    setupServiceWorker();
     applySettings();
     buildMenu();
     resize();
     showScreen('menu');
     requestAnimationFrame(frame);
-
-    // Service worker vain selaimessa (ei Android-WebView'ssä, jossa tiedostot tulevat asseteista).
-    const isWebView = /\bwv\b/.test(navigator.userAgent);
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isWebView) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
   }
 
   function saveNow() { BD.Storage.save(app.save); }
 
   function applySettings() {
-    app.input.setMode(app.save.settings.controls);
-    $('#optDpad').classList.toggle('sel', app.save.settings.controls === 'dpad');
-    $('#optJoy').classList.toggle('sel', app.save.settings.controls === 'joystick');
-    $('#optSound').textContent = app.save.settings.sound ? 'Ääni: päällä' : 'Ääni: pois';
-    $('#optSound').classList.toggle('sel', app.save.settings.sound);
+    const s = app.save.settings;
+    app.input.setMode(s.controls);
+    $('#optDpad').classList.toggle('sel', s.controls === 'dpad');
+    $('#optJoy').classList.toggle('sel', s.controls === 'joystick');
+    $('#optModern').classList.toggle('sel', s.gfx !== 'retro');
+    $('#optRetro').classList.toggle('sel', s.gfx === 'retro');
+    $('#optSound').textContent = s.sound ? '🔊 Ääni päällä' : '🔇 Ääni pois';
+    $('#optSound').classList.toggle('sel', s.sound);
+    document.body.classList.toggle('retro', s.gfx === 'retro');
+    resize();
   }
-  function setControls(mode) { app.save.settings.controls = mode; saveNow(); applySettings(); }
-  function toggleSound() { app.save.settings.sound = !app.save.settings.sound; saveNow(); applySettings(); }
+  function setSetting(key, value) { app.save.settings[key] = value; saveNow(); applySettings(); }
 
   function resetProgress() {
     if (!window.confirm('Nollataanko kaikki edistyminen ja pisteet?')) return;
@@ -73,6 +79,42 @@
     app.save.settings = settings;
     saveNow();
     buildMenu();
+  }
+
+  // ---------- PWA: asennus ja päivitykset ----------
+  function setupInstall() {
+    const btn = $('#btnInstall');
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+    if (standalone) return;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      app.installPrompt = e;
+      btn.hidden = false;
+    });
+    btn.addEventListener('click', async () => {
+      if (!app.installPrompt) return;
+      app.installPrompt.prompt();
+      try { await app.installPrompt.userChoice; } catch (err) { /* ignore */ }
+      app.installPrompt = null;
+      btn.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => { btn.hidden = true; });
+  }
+
+  function setupServiceWorker() {
+    // Service worker vain selaimessa (ei Android-WebView'ssä, jossa tiedostot tulevat asseteista).
+    const isWebView = /\bwv\b/.test(navigator.userAgent);
+    if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http') || isWebView) return;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+    }).catch(() => {});
+    let hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
+      // Uusi versio on ladattu: päivitä heti valikossa, muuten pelin jälkeen.
+      if (app.mode === 'menu') location.reload(); else app.updateReady = true;
+    });
   }
 
   // ---------- Ruudut ----------
@@ -110,8 +152,8 @@
       btn.className = 'lvl' + (locked ? ' locked' : '') + (app.save.completed[n] ? ' done' : '');
       const best = app.save.best[n] || 0;
       total += best;
-      btn.innerHTML = `<span class="num">${n}</span><span class="name">${locked ? '🔒' : cave.name}</span>` +
-        (best ? `<span class="best">${best}</span>` : '');
+      btn.innerHTML = `<span class="num">${n}</span><span class="name">${locked ? '🔒 Lukittu' : cave.name}</span>` +
+        `<span class="best">${best ? '★ ' + best : (locked ? '' : '💎 ' + cave.needed)}</span>`;
       btn.disabled = locked;
       btn.addEventListener('click', () => startLevel(n));
       grid.appendChild(btn);
@@ -119,7 +161,7 @@
     $('#totalScore').textContent = total;
     $('#deaths').textContent = app.save.deaths;
     const sel = Math.min(app.save.selected, BD.CAVES.length);
-    $('#btnContinue').textContent = `Pelaa: ${sel}. ${BD.CAVES[sel - 1].name}`;
+    $('#btnContinue').textContent = `▶ Pelaa: ${sel}. ${BD.CAVES[sel - 1].name}`;
   }
 
   // ---------- Pelin kulku ----------
@@ -129,9 +171,14 @@
     saveNow();
     const def = BD.CAVES[n - 1];
     const cells = BD.generateCave(def);
-    app.cave = new BD.Cave(def, cells, { onSound: (s) => app.audio.play(s) });
+    app.cave = new BD.Cave(def, cells, {
+      onSound: (s) => app.audio.play(s),
+      onEffect: spawnEffect,
+    });
     app.cam.init = false;
     app.acc = 0;
+    app.particles.length = 0;
+    app.shake = 0;
     app.input.clearTouch();
     showScreen('game');
     resize();
@@ -169,6 +216,7 @@
   function resumeGame() { hideOverlay(); app.mode = 'play'; app.last = performance.now(); }
 
   function toMenu() {
+    if (app.updateReady) { location.reload(); return; }
     hideOverlay();
     app.mode = 'menu';
     app.cave = null;
@@ -213,6 +261,43 @@
       buttons, 'won');
   }
 
+  // ---------- Efektit ----------
+  function spawnEffect(name, x, y) {
+    const P = app.particles;
+    const add = (n, colors, speed, life, size, gravity, spread) => {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const v = speed * (0.4 + Math.random() * 0.8);
+        P.push({
+          x: x + 0.5 + (Math.random() - 0.5) * (spread || 0.4), y: y + 0.5 + (Math.random() - 0.5) * (spread || 0.4),
+          vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.2,
+          life: life * (0.6 + Math.random() * 0.6), max: life,
+          color: colors[(Math.random() * colors.length) | 0], size: size * (0.5 + Math.random()), g: gravity,
+        });
+      }
+    };
+    switch (name) {
+      case 'diamond': add(12, ['#bff9ff', '#4ef0ff', '#ffffff'], 4, 0.5, 0.12, 4); break;
+      case 'explosion': add(28, ['#ffe28a', '#ff9a2e', '#ff4d1a', '#ffffff'], 6, 0.8, 0.18, 6, 1.2); app.shake = 10; break;
+      case 'land': add(6, ['#8a8f96', '#b0b5bc'], 1.6, 0.35, 0.1, 3, 0.8); break;
+      case 'exitOpen': add(20, ['#bff9ff', '#4ef0ff'], 3, 0.9, 0.14, 0.5); break;
+      default: break;
+    }
+    if (P.length > 400) P.splice(0, P.length - 400);
+  }
+
+  function updateParticles(dt) {
+    const s = dt / 1000;
+    const P = app.particles;
+    for (let i = P.length - 1; i >= 0; i--) {
+      const p = P[i];
+      p.life -= s;
+      if (p.life <= 0) { P.splice(i, 1); continue; }
+      p.vy += p.g * s;
+      p.x += p.vx * s; p.y += p.vy * s;
+    }
+  }
+
   // ---------- Pelisilmukka ----------
   function frame(now) {
     requestAnimationFrame(frame);
@@ -228,6 +313,7 @@
         if (app.cave.state === 'dead') { onDead(); break; }
         if (app.cave.state === 'won') { onWon(); break; }
       }
+      updateParticles(dt);
     }
     if (app.cave && !$('#gameScreen').hidden) render(dt);
   }
@@ -235,30 +321,36 @@
   // ---------- Piirto ----------
   function resize() {
     const c = app.canvas;
+    if (!c) return;
     const cssW = c.clientWidth || 1, cssH = c.clientHeight || 1;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     app.dpr = dpr;
     const w = Math.round(cssW * dpr), h = Math.round(cssH * dpr);
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-    const cssTile = Math.min(cssW / 12, cssH / 11);
-    let tile = Math.floor(cssTile * dpr / 8) * 8;
+    const landscape = cssW > cssH;
+    const cssTile = landscape ? Math.min(cssW / 20, cssH / 12) : Math.min(cssW / 12, cssH / 11);
+    const retro = app.save.settings.gfx === 'retro';
+    let tile = retro ? Math.floor(cssTile * dpr / 8) * 8 : Math.floor(cssTile * dpr);
     tile = Math.max(16, tile);
-    if (tile !== app.tile || !app.sprites) {
+    const key = (retro ? 'retro' : 'modern') + ':' + tile;
+    if (key !== app.spriteKey) {
+      app.spriteKey = key;
       app.tile = tile;
-      app.sprites = BD.buildSprites(tile);
+      app.sprites = retro ? BD.buildSprites(tile) : BD.buildModernSprites(tile);
+      app.bgPattern = app.sprites.bg ? app.ctx.createPattern(app.sprites.bg[0], 'repeat') : null;
     }
-    app.ctx.imageSmoothingEnabled = false;
+    app.ctx.imageSmoothingEnabled = !retro;
     app.cam.init = false;
   }
 
   function spriteFor(t, i, x, y, cave, tick) {
     const S = app.sprites;
     switch (t) {
-      case T.DIRT: return S.dirt[0];
+      case T.DIRT: return S.dirt[((x * 1103515245 + y * 12345 + (x ^ y) * 2654435761) >>> 0) % S.dirt.length];
       case T.WALL: return S.wall[0];
       case T.STEEL: return S.steel[0];
       case T.BOULDER: case T.BOULDER_F: return S.boulder[0];
-      case T.DIAMOND: case T.DIAMOND_F: return S.diamond[((tick >> 1) + x + y) & 1];
+      case T.DIAMOND: case T.DIAMOND_F: return S.diamond[((tick >> 1) + x + y) % S.diamond.length];
       case T.ROCKFORD: {
         const rf = cave.rf;
         const left = rf.facing < 0;
@@ -275,19 +367,35 @@
       case T.MAGIC:
         if (cave.magic.state === 'on') return S.magic[tick % 3];
         if (cave.magic.state === 'expired') return S.wall[0];
-        return S.magic[0];
+        return (S.magicIdle || S.magic)[0];
       case T.EXPL: return S.explosion[cave.aux[i] & 3];
       default: return null;
     }
+  }
+
+  // Liikkeen lähtösuunta koodista: dx, dy
+  function fromDelta(code) {
+    const k = code - 1;
+    return [(k % 3) - 1, Math.floor(k / 3) - 1];
   }
 
   function render(dt) {
     const cave = app.cave, ctx = app.ctx, tile = app.tile;
     const W = app.canvas.width, H = app.canvas.height;
     const cw = cave.w * tile, ch = cave.h * tile;
+    const frac = app.mode === 'play' ? Math.min(1, app.acc / cave.def.speed) : 1;
+    const tick = cave.tickCount;
 
-    let tx = (cave.rf.x + 0.5) * tile - W / 2;
-    let ty = (cave.rf.y + 0.5) * tile - H / 2;
+    // Rockfordin animoitu sijainti
+    let rx = cave.rf.x, ry = cave.rf.y;
+    const rfi = cave.rf.y * cave.w + cave.rf.x;
+    if (cave.cells[rfi] === T.ROCKFORD && cave.from[rfi]) {
+      const [dx, dy] = fromDelta(cave.from[rfi]);
+      rx -= dx * (1 - frac); ry -= dy * (1 - frac);
+    }
+
+    let tx = (rx + 0.5) * tile - W / 2;
+    let ty = (ry + 0.5) * tile - H / 2;
     tx = cw <= W ? (cw - W) / 2 : BD.clamp(tx, 0, cw - W);
     ty = ch <= H ? (ch - H) / 2 : BD.clamp(ty, 0, ch - H);
     if (!app.cam.init) { app.cam.x = tx; app.cam.y = ty; app.cam.init = true; }
@@ -296,23 +404,70 @@
       app.cam.x += (tx - app.cam.x) * k;
       app.cam.y += (ty - app.cam.y) * k;
     }
-    const camX = Math.round(app.cam.x), camY = Math.round(app.cam.y);
+    let camX = Math.round(app.cam.x), camY = Math.round(app.cam.y);
+    if (app.shake > 0) {
+      camX += Math.round((Math.random() - 0.5) * app.shake * app.dpr);
+      camY += Math.round((Math.random() - 0.5) * app.shake * app.dpr);
+      app.shake *= Math.pow(0.02, dt / 1000);
+      if (app.shake < 0.3) app.shake = 0;
+    }
 
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
+    // Tausta
+    if (app.bgPattern) {
+      ctx.fillStyle = '#0c0d14';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(-camX, -camY);
+      ctx.fillStyle = app.bgPattern;
+      ctx.fillRect(Math.max(0, camX), Math.max(0, camY), Math.min(W, cw), Math.min(H, ch));
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+    }
 
-    const x0 = Math.max(0, Math.floor(camX / tile)), y0 = Math.max(0, Math.floor(camY / tile));
-    const x1 = Math.min(cave.w - 1, Math.ceil((camX + W) / tile)), y1 = Math.min(cave.h - 1, Math.ceil((camY + H) / tile));
-    const tick = cave.tickCount;
+    const x0 = Math.max(0, Math.floor(camX / tile) - 1), y0 = Math.max(0, Math.floor(camY / tile) - 1);
+    const x1 = Math.min(cave.w - 1, Math.ceil((camX + W) / tile) + 1), y1 = Math.min(cave.h - 1, Math.ceil((camY + H) / tile) + 1);
+
+    // 1. vaihe: paikallaan olevat ruudut
+    const movers = [];
+    let rockford = -1;
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const i = y * cave.w + x;
         const t = cave.cells[i];
         if (t === T.EMPTY) continue;
+        if (t === T.ROCKFORD) { rockford = i; continue; }
+        if (cave.from[i] && MOVERS.has(t)) { movers.push(i); continue; }
         const spr = spriteFor(t, i, x, y, cave, tick);
         if (spr) ctx.drawImage(spr, x * tile - camX, y * tile - camY);
       }
     }
+    // 2. vaihe: liikkuvat esineet animoituina
+    const drawMoving = (i) => {
+      const x = i % cave.w, y = (i / cave.w) | 0;
+      const t = cave.cells[i];
+      let px = x, py = y;
+      if (cave.from[i]) {
+        const [dx, dy] = fromDelta(cave.from[i]);
+        px -= dx * (1 - frac); py -= dy * (1 - frac);
+      }
+      const spr = spriteFor(t, i, x, y, cave, tick);
+      if (spr) ctx.drawImage(spr, Math.round(px * tile - camX), Math.round(py * tile - camY));
+    };
+    for (const i of movers) drawMoving(i);
+    if (rockford >= 0) drawMoving(rockford);
+
+    // Partikkelit
+    for (const p of app.particles) {
+      const a = Math.max(0, Math.min(1, p.life / p.max));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      const s = Math.max(1, p.size * tile * a);
+      ctx.fillRect(p.x * tile - camX - s / 2, p.y * tile - camY - s / 2, s, s);
+    }
+    ctx.globalAlpha = 1;
+
     updateHud();
   }
 
@@ -322,7 +477,7 @@
     const t = `⏱ ${c.timeLeft}`;
     const s = `★ ${c.score}`;
     const cv = `${app.level}. ${c.def.name}`;
-    if (d !== h.d) { $('#hudDiamonds').textContent = d; h.d = d; }
+    if (d !== h.d) { $('#hudDiamonds').textContent = d; h.d = d; $('#hudDiamonds').classList.toggle('ok', c.exitOpen); }
     if (t !== h.t) { $('#hudTime').textContent = t; h.t = t; $('#hudTime').classList.toggle('warn', c.timeLeft <= 10); }
     if (s !== h.s) { $('#hudScore').textContent = s; h.s = s; }
     if (cv !== h.c) { $('#hudCave').textContent = cv; h.c = cv; }

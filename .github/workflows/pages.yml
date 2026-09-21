@@ -43,6 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Leimaa service worker commitin tunnisteella
+        run: sed -i "s/__BUILD__/${GITHUB_SHA::8}/" web/sw.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
