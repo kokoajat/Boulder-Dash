@@ -17,6 +17,7 @@ oikeana Android-sovelluksena (`android/`, WebView-kääre).
 - Ohjaus ruudun alareunassa, valittavissa asetuksista:
   - **Nuolinäppäimet** (d-pad) – peukaloa voi liu'uttaa painikkeelta toiselle.
   - **Peukalojoystick** – kosketa mihin tahansa ohjausalueella ja vedä haluttuun suuntaan.
+  - **Herkkyys** (matala / keski / korkea) säätää, kuinka pieni peukalon liike riittää.
 - Kaksi grafiikkatyyliä: **Moderni** (resoluutiosta riippumaton vektorigrafiikka, sulava
   liike, partikkelit) ja **Retro** (8×8-pikseligrafiikka).
 - Näppäimistöllä (nuolet / WASD, Esc = tauko) peli toimii myös tietokoneella.

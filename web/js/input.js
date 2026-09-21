@@ -21,6 +21,7 @@
       this.keys = [];
       this.activeId = null;
       this.joy = { cx: 0, cy: 0, radius: 48, dead: 14 };
+      this.dpadDead = 0.18;
       this.bindDpad();
       this.bindJoystick();
       this.bindKeyboard();
@@ -31,6 +32,23 @@
       this.els.dpad.hidden = mode !== 'dpad';
       this.els.joystick.hidden = mode !== 'joystick';
       this.clearTouch();
+    }
+
+    /** Herkkyys: 'low' | 'medium' | 'high'. Pienempi kuollut alue ja liikematka = herkempi. */
+    setSensitivity(level) {
+      const cfg = {
+        low: { radius: 62, dead: 24, dpad: 0.3 },
+        medium: { radius: 48, dead: 14, dpad: 0.18 },
+        high: { radius: 34, dead: 7, dpad: 0.08 },
+      }[level] || { radius: 48, dead: 14, dpad: 0.18 };
+      this.joy.radius = cfg.radius;
+      this.joy.dead = cfg.dead;
+      this.dpadDead = cfg.dpad;
+      const size = cfg.radius * 2 + 16;
+      const base = this.els.joyBase;
+      base.style.width = size + 'px';
+      base.style.height = size + 'px';
+      base.style.margin = `${-size / 2}px 0 0 ${-size / 2}px`;
     }
 
     getDir() {
@@ -61,7 +79,7 @@
         const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
         const ny = ((e.clientY - r.top) / r.height) * 2 - 1;
         let dx = 0, dy = 0;
-        if (Math.hypot(nx, ny) >= 0.18) {
+        if (Math.hypot(nx, ny) >= this.dpadDead) {
           if (Math.abs(nx) > Math.abs(ny)) dx = nx > 0 ? 1 : -1; else dy = ny > 0 ? 1 : -1;
         }
         this.setTouchDir(dx, dy);

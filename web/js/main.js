@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
 
   const app = {
     save: null, sprites: null, spriteKey: '', tile: 32, dpr: 1,
@@ -44,6 +44,9 @@
     $('#optModern').addEventListener('click', () => setSetting('gfx', 'modern'));
     $('#optRetro').addEventListener('click', () => setSetting('gfx', 'retro'));
     $('#optSound').addEventListener('click', () => setSetting('sound', !app.save.settings.sound));
+    $('#optSensLow').addEventListener('click', () => setSetting('sensitivity', 'low'));
+    $('#optSensMed').addEventListener('click', () => setSetting('sensitivity', 'medium'));
+    $('#optSensHigh').addEventListener('click', () => setSetting('sensitivity', 'high'));
     $('#btnContinue').addEventListener('click', () => startLevel(app.save.selected));
     $('#version').textContent = 'v' + VERSION;
 
@@ -61,6 +64,10 @@
   function applySettings() {
     const s = app.save.settings;
     app.input.setMode(s.controls);
+    app.input.setSensitivity(s.sensitivity);
+    $('#optSensLow').classList.toggle('sel', s.sensitivity === 'low');
+    $('#optSensMed').classList.toggle('sel', !s.sensitivity || s.sensitivity === 'medium');
+    $('#optSensHigh').classList.toggle('sel', s.sensitivity === 'high');
     $('#optDpad').classList.toggle('sel', s.controls === 'dpad');
     $('#optJoy').classList.toggle('sel', s.controls === 'joystick');
     $('#optModern').classList.toggle('sel', s.gfx !== 'retro');
