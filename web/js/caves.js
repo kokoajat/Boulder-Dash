@@ -259,16 +259,103 @@
       }
     }
 
-    // Varmista että timantteja on riittävästi
+    // Uloskäynnin edusta: ei kiviä eikä ötököitä uloskäynnin sisäpuolisen naapurin ympärillä,
+    // jotta ovelle pääsee varmasti (kaksi vierekkäistä kiveä reunassa olisi mahdoton työntää).
+    for (let i = 0; i < cells.length; i++) {
+      if (cells[i] !== T.EXIT_CLOSED) continue;
+      const ex = i % w, ey = (i / w) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = ex + dx, ny = ey + dy;
+        if (nx <= 0 || ny <= 0 || nx >= w - 1 || ny >= h - 1) continue;
+        for (let y = ny - 1; y <= ny + 1; y++) {
+          for (let x = nx - 1; x <= nx + 1; x++) {
+            if (x <= 0 || y <= 0 || x >= w - 1 || y >= h - 1) continue;
+            const t = cells[y * w + x];
+            if (t === T.BOULDER || t === T.FIREFLY || t === T.BUTTERFLY || t === T.WALL) cells[y * w + x] = T.DIRT;
+          }
+        }
+        cells[ny * w + nx] = T.DIRT;
+      }
+    }
+
+    // Takuu: uloskäynnille on reitti ilman että yhtäkään kiveä tarvitsee siirtää.
+    // Jos ei ole, raivataan lyhin reitti, jolla on vähiten kiviä (kivet -> maa).
+    let startIdx = -1, exitIdx = -1;
+    for (let i = 0; i < cells.length; i++) {
+      if (cells[i] === T.INBOX) startIdx = i;
+      if (cells[i] === T.EXIT_CLOSED) exitIdx = i;
+    }
+    if (startIdx >= 0 && exitIdx >= 0) carvePath(cells, w, h, startIdx, exitIdx);
+
+    // Varmista että timantteja on riittävästi saavutettavalla alueella
+    const reach = reachable(cells, w, h, startIdx);
     let diamonds = 0;
-    for (let i = 0; i < cells.length; i++) if (cells[i] === T.DIAMOND) diamonds++;
-    let guard = 0;
-    while (diamonds < def.needed + 4 && guard++ < 5000) {
-      const x = 1 + ((rng() * (w - 2)) | 0), y = 1 + ((rng() * (h - 2)) | 0);
-      const i = y * w + x;
-      if (cells[i] === T.DIRT && cells[(y - 1) * w + x] !== T.BOULDER) { cells[i] = T.DIAMOND; diamonds++; }
+    const candidates = [];
+    for (let i = 0; i < cells.length; i++) {
+      if (!reach[i]) continue;
+      if (cells[i] === T.DIAMOND) diamonds++;
+      else if (cells[i] === T.DIRT && cells[i - w] !== T.BOULDER) candidates.push(i);
+    }
+    while (diamonds < def.needed + 4 && candidates.length) {
+      const k = (rng() * candidates.length) | 0;
+      cells[candidates[k]] = T.DIAMOND;
+      candidates.splice(k, 1);
+      diamonds++;
     }
     return cells;
+  }
+
+  const FREE = (t) => t === T.DIRT || t === T.EMPTY || t === T.DIAMOND || t === T.INBOX || t === T.EXIT_CLOSED;
+
+  /** Kaikki ruudut, joihin pääsee aloituspaikasta kiviä siirtämättä. */
+  function reachable(cells, w, h, startIdx) {
+    const seen = new Uint8Array(cells.length);
+    if (startIdx < 0) return seen;
+    const q = [startIdx]; seen[startIdx] = 1;
+    while (q.length) {
+      const i = q.pop();
+      const x = i % w, y = (i / w) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (seen[j] || !FREE(cells[j])) continue;
+        seen[j] = 1; q.push(j);
+      }
+    }
+    return seen;
+  }
+
+  /** 0-1-BFS: reitti alusta uloskäynnille, jossa kivien määrä on pienin; kivet reitillä -> maa. */
+  function carvePath(cells, w, h, startIdx, exitIdx) {
+    const INF = 1e9;
+    const dist = new Int32Array(cells.length).fill(INF);
+    const parent = new Int32Array(cells.length).fill(-1);
+    const dq = [startIdx]; dist[startIdx] = 0;
+    let head = 0;
+    while (head < dq.length) {
+      const i = dq[head++];
+      const x = i % w, y = (i / w) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        const t = cells[j];
+        let cost;
+        if (FREE(t)) cost = 0;
+        else if (t === T.BOULDER) cost = 1;
+        else continue; // teräs, seinä, taikaseinä, ameeba, ötökät: ei läpi
+        if (dist[i] + cost < dist[j]) {
+          dist[j] = dist[i] + cost;
+          parent[j] = i;
+          if (cost === 0) dq.splice(head, 0, j); else dq.push(j);
+        }
+      }
+    }
+    if (dist[exitIdx] === INF || dist[exitIdx] === 0) return;
+    for (let i = parent[exitIdx]; i >= 0 && i !== startIdx; i = parent[i]) {
+      if (cells[i] === T.BOULDER) cells[i] = T.DIRT;
+    }
   }
 
   window.BD.CAVES = CAVES;

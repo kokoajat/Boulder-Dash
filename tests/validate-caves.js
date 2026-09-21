@@ -20,8 +20,8 @@ BD.CAVES.forEach((def, li) => {
     if (cells[i] === T.BUTTERFLY) bfly++;
     if (cells[i] === T.MAGIC) magic++;
   }
-  // BFS reachability over passable cells
-  const pass = (t) => t === T.DIRT || t === T.EMPTY || t === T.DIAMOND || t === T.INBOX || t === T.EXIT_CLOSED || t === T.BOULDER;
+  // BFS-saavutettavuus ilman, että yhtäkään kiveä tarvitsee siirtää (kivet ja seinät estävät)
+  const pass = (t) => t === T.DIRT || t === T.EMPTY || t === T.DIAMOND || t === T.INBOX || t === T.EXIT_CLOSED;
   const seen = new Uint8Array(cells.length); const q = [start]; seen[start] = 1;
   let reachDiamonds = 0;
   while (q.length) {
@@ -33,6 +33,14 @@ BD.CAVES.forEach((def, li) => {
     }
   }
   const reachExit = seen[exit] === 1;
+  // Uloskäynnin sisäpuolinen naapuri ei saa olla kivi tai seinä
+  const exx = exit % w, exy = (exit / w) | 0;
+  let exitFront = true;
+  for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    const nx = exx + dx, ny = exy + dy; if (nx <= 0 || ny <= 0 || nx >= w - 1 || ny >= h - 1) continue;
+    const t = cells[ny * w + nx];
+    if (!(t === T.DIRT || t === T.EMPTY || t === T.DIAMOND)) exitFront = false;
+  }
   // simulate 600 ticks with random input to catch crashes
   const cave = new BD.Cave(def, cells.slice(), {});
   const rng = BD.mulberry32(5);
@@ -41,9 +49,9 @@ BD.CAVES.forEach((def, li) => {
     cave.tick({ dx: [0,1,-1,0,0][d], dy: [0,0,0,1,-1][d] });
     if (cave.state === 'dead' || cave.state === 'won') break;
   }
-  const line = `${li + 1}. ${def.name.padEnd(18)} need=${def.needed} diamonds=${diamonds} reachable=${reachDiamonds} boulders=${boulders} bfly=${bfly} magic=${magic} start=${start >= 0} exit=${exit >= 0} exitReachable=${reachExit} simState=${cave.state} t=${cave.timeLeft}`;
+  const line = `${li + 1}. ${def.name.padEnd(18)} need=${def.needed} diamonds=${diamonds} reachable=${reachDiamonds} boulders=${boulders} bfly=${bfly} magic=${magic} start=${start >= 0} exit=${exit >= 0} exitReachable=${reachExit} exitFront=${exitFront} simState=${cave.state} t=${cave.timeLeft}`;
   console.log(line);
-  if (start < 0 || exit < 0 || !reachExit || reachDiamonds < def.needed) { ok = false; console.log('   !!! PROBLEM'); }
+  if (start < 0 || exit < 0 || !reachExit || !exitFront || reachDiamonds < def.needed) { ok = false; console.log('   !!! PROBLEM'); }
   // print map
   let s = '';
   const ch = { [T.EMPTY]: ' ', [T.DIRT]: '.', [T.WALL]: 'W', [T.STEEL]: '#', [T.BOULDER]: 'r', [T.DIAMOND]: 'd', [T.INBOX]: 'P', [T.EXIT_CLOSED]: 'X', [T.FIREFLY]: 'f', [T.BUTTERFLY]: 'b', [T.AMOEBA]: 'a', [T.MAGIC]: 'M' };
