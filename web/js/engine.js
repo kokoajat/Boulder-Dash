@@ -63,9 +63,11 @@
       this.lastMove = 0;
       this.timeBonus = 0;
 
-      // Etsi aloituspaikka
+      // Etsi aloituspaikka ja uloskäynti
+      this.exit = null;
       for (let i = 0; i < cells.length; i++) {
         if (cells[i] === T.INBOX) { this.rf.x = i % this.w; this.rf.y = (i / this.w) | 0; }
+        if (cells[i] === T.EXIT_CLOSED) this.exit = { x: i % this.w, y: (i / this.w) | 0 };
       }
       // Alusta ötököiden suunnat
       for (let i = 0; i < cells.length; i++) {

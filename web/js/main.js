@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
@@ -192,6 +192,7 @@
     app.pacc = 0;
     app.particles.length = 0;
     app.shake = 0;
+    $('#toast').hidden = true;
     app.input.clearTouch();
     showScreen('game');
     resize();
@@ -300,10 +301,18 @@
       case 'diamond': add(12, ['#bff9ff', '#4ef0ff', '#ffffff'], 4, 0.5, 0.12, 4); break;
       case 'explosion': add(28, ['#ffe28a', '#ff9a2e', '#ff4d1a', '#ffffff'], 6, 0.8, 0.18, 6, 1.2); app.shake = 10; break;
       case 'land': add(6, ['#8a8f96', '#b0b5bc'], 1.6, 0.35, 0.1, 3, 0.8); break;
-      case 'exitOpen': add(20, ['#bff9ff', '#4ef0ff'], 3, 0.9, 0.14, 0.5); break;
+      case 'exitOpen': add(20, ['#bff9ff', '#4ef0ff'], 3, 0.9, 0.14, 0.5); showToast('Uloskäynti aukesi! Seuraa nuolta.'); break;
       default: break;
     }
     if (P.length > 400) P.splice(0, P.length - 400);
+  }
+
+  function showToast(text, ms) {
+    const el = $('#toast');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(app.toastTimer);
+    app.toastTimer = setTimeout(() => { el.hidden = true; }, ms || 2500);
   }
 
   function updateParticles(dt) {
@@ -492,6 +501,9 @@
     for (const i of movers) drawMoving(i);
     if (rockford >= 0) drawMoving(rockford);
 
+    // Uloskäynnin suuntanuoli, kun ovi on auki mutta ruudun ulkopuolella
+    if (cave.exitOpen && cave.exit && app.mode === 'play') drawExitArrow(ctx, cave, tile, camX, camY, W, H, tick);
+
     // Partikkelit
     for (const p of app.particles) {
       const a = Math.max(0, Math.min(1, p.life / p.max));
@@ -503,6 +515,27 @@
     ctx.globalAlpha = 1;
 
     updateHud();
+  }
+
+  function drawExitArrow(ctx, cave, tile, camX, camY, W, H, tick) {
+    const ex = (cave.exit.x + 0.5) * tile - camX, ey = (cave.exit.y + 0.5) * tile - camY;
+    if (ex >= 0 && ex <= W && ey >= 0 && ey <= H) return;
+    const cx = W / 2, cy = H / 2;
+    const dx = ex - cx, dy = ey - cy;
+    const m = tile * 0.55;
+    const t = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
+    const px = cx + dx * t, py = cy + dy * t;
+    const ang = Math.atan2(dy, dx);
+    const r = tile * (0.3 + 0.04 * Math.sin(tick * 0.9));
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.shadowColor = 'rgba(80,235,255,0.95)'; ctx.shadowBlur = tile * 0.4;
+    ctx.fillStyle = 'rgba(10,20,30,0.75)';
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.25, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(ang);
+    ctx.fillStyle = '#5fe3ff';
+    ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * 0.6, -r * 0.7); ctx.lineTo(-r * 0.25, 0); ctx.lineTo(-r * 0.6, r * 0.7); ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
 
   function updateHud() {

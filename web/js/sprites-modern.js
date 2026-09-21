@@ -203,8 +203,11 @@
     };
     const drawExitClosed = (ctx) => {
       drawDoorFrame(ctx);
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 0.5;
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 0.5;
       rr(ctx, 4.4, 3.8, 7.2, 8.8, 1); ctx.stroke();
+      ctx.fillStyle = 'rgba(120,240,255,0.35)';
+      circle(ctx, 9.6, 8.4, 0.7); ctx.fill();
+      ctx.fillRect(9.25, 8.6, 0.7, 1.8);
     };
     const drawExitOpen = (frame) => (ctx) => {
       drawSteel(ctx);
