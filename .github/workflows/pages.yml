@@ -33,6 +33,7 @@ jobs:
         run: |
           node tests/validate-caves.js
           node tests/engine.test.js
+          node tests/playthrough.js 30
 
   deploy:
     needs: test

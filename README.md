@@ -103,4 +103,11 @@ suorakaiteita, yksittäisiä ruutuja, aloituspaikka `P` ja uloskäynti `X`.
 ```bash
 node tests/validate-caves.js    # luolien eheystarkistus (lisää "maps" nähdäksesi kartat)
 node tests/engine.test.js       # pelimoottorin yksikkötestit
+node tests/playthrough.js 30    # botti pelaa jokaisen luolan läpi oikealla moottorilla
 ```
+
+Luolien tarkistus takaa, että joka luolassa on reitti uloskäynnille ja riittäviin
+timantteihin ilman että yhtäkään kiveä tarvitsee siirtää. Pelitesti varmistaa
+lisäksi oikealla fysiikalla (putoavat kivet, ötökät, aikaraja), että botti
+läpäisee jokaisen luolan vähintään puolella yrityksistään. Molemmat ajetaan
+jokaisessa julkaisussa ennen Pages-julkaisua.
