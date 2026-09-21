@@ -18,6 +18,8 @@ oikeana Android-sovelluksena (`android/`, WebView-kääre).
   - **Nuolinäppäimet** (d-pad) – peukaloa voi liu'uttaa painikkeelta toiselle.
   - **Peukalojoystick** – kosketa mihin tahansa ohjausalueella ja vedä haluttuun suuntaan.
   - **Herkkyys** (matala / keski / korkea) säätää, kuinka pieni peukalon liike riittää.
+  - **Rockfordin nopeus** (hidas / normaali / nopea) säätää Rockfordin liikkumistahtia
+    ilman että kivien ja ötököiden nopeus muuttuu.
 - Kaksi grafiikkatyyliä: **Moderni** (resoluutiosta riippumaton vektorigrafiikka, sulava
   liike, partikkelit) ja **Retro** (8×8-pikseligrafiikka).
 - Näppäimistöllä (nuolet / WASD, Esc = tauko) peli toimii myös tietokoneella.

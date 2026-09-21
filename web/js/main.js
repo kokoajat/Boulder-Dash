@@ -3,12 +3,13 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
+  const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
     save: null, sprites: null, spriteKey: '', tile: 32, dpr: 1,
     cave: null, level: 1, mode: 'menu', // menu | intro | play | pause | dead | won
-    cam: { x: 0, y: 0, init: false }, acc: 0, last: 0,
+    cam: { x: 0, y: 0, init: false }, acc: 0, pacc: 0, last: 0,
     hud: { d: '', t: '', s: '', c: '' },
     particles: [], shake: 0, bgPattern: null,
     installPrompt: null, updateReady: false,
@@ -47,6 +48,9 @@
     $('#optSensLow').addEventListener('click', () => setSetting('sensitivity', 'low'));
     $('#optSensMed').addEventListener('click', () => setSetting('sensitivity', 'medium'));
     $('#optSensHigh').addEventListener('click', () => setSetting('sensitivity', 'high'));
+    $('#optSpeedSlow').addEventListener('click', () => setSetting('speed', 'slow'));
+    $('#optSpeedNormal').addEventListener('click', () => setSetting('speed', 'normal'));
+    $('#optSpeedFast').addEventListener('click', () => setSetting('speed', 'fast'));
     $('#btnContinue').addEventListener('click', () => startLevel(app.save.selected));
     $('#version').textContent = 'v' + VERSION;
 
@@ -68,6 +72,9 @@
     $('#optSensLow').classList.toggle('sel', s.sensitivity === 'low');
     $('#optSensMed').classList.toggle('sel', !s.sensitivity || s.sensitivity === 'medium');
     $('#optSensHigh').classList.toggle('sel', s.sensitivity === 'high');
+    $('#optSpeedSlow').classList.toggle('sel', s.speed === 'slow');
+    $('#optSpeedNormal').classList.toggle('sel', !s.speed || s.speed === 'normal');
+    $('#optSpeedFast').classList.toggle('sel', s.speed === 'fast');
     $('#optDpad').classList.toggle('sel', s.controls === 'dpad');
     $('#optJoy').classList.toggle('sel', s.controls === 'joystick');
     $('#optModern').classList.toggle('sel', s.gfx !== 'retro');
@@ -91,9 +98,7 @@
   // ---------- PWA: asennus ja päivitykset ----------
   function setupInstall() {
     const btn = $('#btnInstall');
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
-    if (standalone) return;
+    if (isInstalledApp()) return;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       app.installPrompt = e;
@@ -184,6 +189,7 @@
     });
     app.cam.init = false;
     app.acc = 0;
+    app.pacc = 0;
     app.particles.length = 0;
     app.shake = 0;
     app.input.clearTouch();
@@ -203,8 +209,15 @@
     requestFullscreenIfPossible();
   }
 
+  function isInstalledApp() {
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+  }
+
   function requestFullscreenIfPossible() {
-    if (!document.body.classList.contains('touch')) return;
+    // Asennetussa sovelluksessa koko näyttö on jo käytössä; Fullscreen API:n pyyntö
+    // näyttäisi vain turhan "poistu koko näytön tilasta" -ilmoituksen.
+    if (!document.body.classList.contains('touch') || isInstalledApp()) return;
     const el = document.documentElement;
     if (!document.fullscreenElement && el.requestFullscreen) {
       el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
@@ -311,18 +324,30 @@
     const dt = Math.min(100, now - app.last);
     app.last = now;
     if (app.mode === 'play' && app.cave) {
-      app.acc += dt;
+      const dir = app.input.getDir();
       const speed = app.cave.def.speed;
+      const pInterval = playerInterval();
+      app.acc += dt;
+      app.pacc += dt;
       let n = 0;
       while (app.acc >= speed && n++ < 4) {
         app.acc -= speed;
-        app.cave.tick(app.input.getDir());
-        if (app.cave.state === 'dead') { onDead(); break; }
-        if (app.cave.state === 'won') { onWon(); break; }
+        app.cave.tick(dir, false);
       }
+      n = 0;
+      while (app.pacc >= pInterval && n++ < 4) {
+        app.pacc -= pInterval;
+        app.cave.tickPlayer(dir);
+      }
+      if (app.cave.state === 'dead') onDead();
+      else if (app.cave.state === 'won') onWon();
       updateParticles(dt);
     }
     if (app.cave && !$('#gameScreen').hidden) render(dt);
+  }
+
+  function playerInterval() {
+    return app.cave.def.speed * (PLAYER_SPEED[app.save.settings.speed] || 1);
   }
 
   // ---------- Piirto ----------
@@ -391,14 +416,15 @@
     const W = app.canvas.width, H = app.canvas.height;
     const cw = cave.w * tile, ch = cave.h * tile;
     const frac = app.mode === 'play' ? Math.min(1, app.acc / cave.def.speed) : 1;
+    const pfrac = app.mode === 'play' ? Math.min(1, app.pacc / playerInterval()) : 1;
     const tick = cave.tickCount;
 
-    // Rockfordin animoitu sijainti
+    // Rockfordin animoitu sijainti (oma tahti)
     let rx = cave.rf.x, ry = cave.rf.y;
     const rfi = cave.rf.y * cave.w + cave.rf.x;
-    if (cave.cells[rfi] === T.ROCKFORD && cave.from[rfi]) {
-      const [dx, dy] = fromDelta(cave.from[rfi]);
-      rx -= dx * (1 - frac); ry -= dy * (1 - frac);
+    if (cave.cells[rfi] === T.ROCKFORD && cave.rf.from) {
+      const [dx, dy] = fromDelta(cave.rf.from);
+      rx -= dx * (1 - pfrac); ry -= dy * (1 - pfrac);
     }
 
     let tx = (rx + 0.5) * tile - W / 2;
@@ -455,7 +481,8 @@
       const x = i % cave.w, y = (i / cave.w) | 0;
       const t = cave.cells[i];
       let px = x, py = y;
-      if (cave.from[i]) {
+      if (t === T.ROCKFORD) { px = rx; py = ry; }
+      else if (cave.from[i]) {
         const [dx, dy] = fromDelta(cave.from[i]);
         px -= dx * (1 - frac); py -= dy * (1 - frac);
       }

@@ -10,7 +10,7 @@
     best: {},             // paras pistemäärä luolittain { "1": 250 }
     completed: {},        // läpäisyjen määrä luolittain
     deaths: 0,
-    settings: { controls: 'dpad', sound: true, gfx: 'modern', sensitivity: 'medium' },
+    settings: { controls: 'dpad', sound: true, gfx: 'modern', sensitivity: 'medium', speed: 'normal' },
   });
 
   function load() {

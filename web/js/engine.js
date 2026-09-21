@@ -59,7 +59,7 @@
       this.magic = { state: 'off', ticks: 0 };
       this.amoeba = { count: 0, canGrow: true, ticks: 0, fast: false, done: false };
 
-      this.rf = { x: 0, y: 0, facing: 1, moved: false, anim: 0 };
+      this.rf = { x: 0, y: 0, facing: 1, moved: false, anim: 0, from: 0 };
       this.lastMove = 0;
       this.timeBonus = 0;
 
@@ -228,6 +228,7 @@
 
       const move = () => {
         this.move(x, y, nx, ny, T.ROCKFORD);
+        this.rf.from = this.from[ny * this.w + nx];
         this.rf.x = nx; this.rf.y = ny; this.rf.moved = true;
       };
 
@@ -275,8 +276,19 @@
       this.sound('exitOpen');
     }
 
-    // ---- Yksi pelitick ----
-    tick(input) {
+    /** Rockfordin liikeaskel. Ajetaan omalla tahdillaan, erillään luolan fysiikasta. */
+    tickPlayer(input) {
+      this.rf.moved = false;
+      this.rf.from = 0;
+      if (this.state !== 'playing') return;
+      const i = this.rf.y * this.w + this.rf.x;
+      if (this.cells[i] !== T.ROCKFORD) return;
+      this.processRockford(this.rf.x, this.rf.y, input);
+      if (this.rf.moved) this.rf.anim = (this.rf.anim + 1) % 2;
+    }
+
+    // ---- Yksi fysiikkatick. movePlayer=true liikuttaa myös Rockfordia (testit). ----
+    tick(input, movePlayer) {
       this.tickCount++;
       this.stateTicks++;
       this.scanned.fill(0);
@@ -320,8 +332,7 @@
               if (!this.amoeba.done) this.processAmoeba(x, y);
               break;
             case T.ROCKFORD:
-              if (this.state === 'playing') this.processRockford(x, y, input);
-              break;
+              break; // Rockford käsitellään tickPlayer()-metodissa
             case T.INBOX:
               if (this.state === 'spawning' && this.stateTicks >= SPAWN_TICKS) {
                 this.cells[i] = T.ROCKFORD;
@@ -359,7 +370,7 @@
         this.state = 'dead';
         this.stateTicks = 0;
       }
-      if (this.rf.moved) this.rf.anim = (this.rf.anim + 1) % 2;
+      if (movePlayer !== false) this.tickPlayer(input);
     }
 
     convertAmoeba(to) {
