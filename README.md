@@ -112,5 +112,5 @@ node tests/playthrough.js 30    # botti pelaa jokaisen luolan läpi oikealla moo
 Luolien tarkistus takaa, että joka luolassa on reitti uloskäynnille ja riittäviin
 timantteihin ilman että yhtäkään kiveä tarvitsee siirtää. Pelitesti varmistaa
 lisäksi oikealla fysiikalla (putoavat kivet, ötökät, aikaraja), että botti
-läpäisee jokaisen luolan vähintään puolella yrityksistään. Molemmat ajetaan
+läpäisee jokaisen luolan vähintään 40 prosentilla yrityksistään. Molemmat ajetaan
 jokaisessa julkaisussa ennen Pages-julkaisua.

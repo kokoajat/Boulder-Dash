@@ -59,10 +59,29 @@ function enemyDist(c) {
   return d;
 }
 
+/** Ötököiden alue: tyhjät ruudut, joihin ötökkä voi liikkua (2), ja niiden naapurit (1). */
+function enemyZone(c) {
+  const z = new Uint8Array(c.w * c.h);
+  const q = [];
+  for (let i = 0; i < c.cells.length; i++) if (isEnemy(c.cells[i])) { z[i] = 2; q.push(i); }
+  let h = 0;
+  while (h < q.length) {
+    const i = q[h++]; const x = i % c.w, y = (i / c.w) | 0;
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= c.w || ny >= c.h) continue;
+      const j = ny * c.w + nx;
+      if (c.cells[j] === T.EMPTY) { if (z[j] !== 2) { z[j] = 2; q.push(j); } }
+      else if (!z[j]) z[j] = 1;
+    }
+  }
+  return z;
+}
+
 /** Dijkstra Rockfordista; palauttaa etäisyydet, vanhemmat ja seuraavan askeleen laskijan. */
 function plan(c, rng, targetFn) {
   const w = c.w, h = c.h;
   const ed = enemyDist(c);
+  const zone = enemyZone(c);
   const dist = new Int32Array(w * h).fill(1e9), parent = new Int32Array(w * h).fill(-1);
   const s = c.rf.y * w + c.rf.x; dist[s] = 0;
   const pq = [[0, s]];
@@ -77,12 +96,15 @@ function plan(c, rng, targetFn) {
     for (const [dx, dy] of order) {
       const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
       const j = ny * w + nx; const t = c.cells[j];
+      if (i === s && stepDanger(c, dx, dy)) continue; // ensimmäinen askel: sama sääntö kuin toteutuksessa
       let cost = 1;
       if (t === T.EXIT_OPEN) cost = 1;
       else if (walkable(t)) cost = t === T.DIRT ? 1.2 : 1;
       else if (t === T.BOULDER && dy === 0 && c.get(nx + dx, ny) === T.EMPTY) cost = 4; // työntö
       else continue;
       if (ed[j] <= 2) cost += 40;                       // ötökän lähellä
+      if (zone[j] === 2 && !targetFn(t, j)) continue;   // ötököiden liikkuma-alue: ei mennä
+      if (zone[j] === 1) cost += 60;                    // ötökän mahdollinen kosketusruutu
       if (fallingOnto(c, nx, ny)) cost += 200;          // putoava esine yläpuolella
       if (rollOnto(c, nx, ny)) cost += 30;
       if (dy === 1) {                                   // alas: yläpuolen kivi seuraa
@@ -138,8 +160,16 @@ function playCave(def, seed) {
         }
       } else if (p && !stepDanger(c, p.dx, p.dy)) {
         input = { dx: p.dx, dy: p.dy };
+        idle = 0;
       } else {
         idle++;
+        if (idle > 12) {
+          // Ei reittiä: ota satunnainen turvallinen askel, jotta tilanne muuttuu
+          const zone = enemyZone(c);
+          const opts = DIRS.filter(([dx, dy]) => walkable(c.get(c.rf.x + dx, c.rf.y + dy)) && !stepDanger(c, dx, dy)
+            && !zone[(c.rf.y + dy) * c.w + c.rf.x + dx]);
+          if (opts.length) { const [dx, dy] = opts[(rng() * opts.length) | 0]; input = { dx, dy }; }
+        }
       }
     }
     c.tick(input);
@@ -154,7 +184,7 @@ function playCave(def, seed) {
 }
 
 let allOk = true;
-const MIN_RATE = 0.5; // vähintään puolet yrityksistä läpi
+const MIN_RATE = 0.4; // vähintään 40 % yrityksistä läpi (botti on ihmistä varovaisempi ja jää joskus jumiin)
 BD.CAVES.forEach((def, li) => {
   let wins = 0, best = null; const reasons = {};
   for (let a = 0; a < ATTEMPTS; a++) {

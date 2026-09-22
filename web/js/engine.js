@@ -189,6 +189,8 @@
           return;
         }
       }
+      // Ötökät liikkuvat joka toisella tickillä (puolet luolan tahdista); kosketus tarkistetaan joka tick
+      if (this.tickCount % (this.def.enemyEvery || 2) !== 0) return;
       const turn = (t === T.FIREFLY) ? 3 : 1; // tulikärpänen kääntyy vasemmalle, perhonen oikealle
       const d1 = (dir + turn) & 3;
       if (this.get(x + DX[d1], y + DY[d1]) === T.EMPTY) {

@@ -20,7 +20,7 @@
 
   const base = (o) => Object.assign({
     w: W, h: H, seed: 1, needed: 10, value: 10, extra: 20, time: 150, speed: 160,
-    amoebaTime: 30, magicTime: 25, timeBonus: 1,
+    amoebaTime: 30, magicTime: 25, timeBonus: 1, enemyEvery: 2,
     fill: { boulder: 0.10, diamond: 0.06, firefly: 0, butterfly: 0, empty: 0.05 },
     objects: [],
   }, o);
@@ -52,11 +52,11 @@
       fill: { boulder: 0.12, diamond: 0.06, empty: 0.04 },
       objects: [
         ['P', 2, 2], ['X', 39, 3],
-        // Kolme tulikärpäshuonetta
-        ['rect', 8, 6, 8, 5, 'W'], ['fill', 9, 7, 6, 3, ' '], ['pt', 10, 8, 'f'], ['pt', 13, 8, 'f'],
-        ['rect', 22, 12, 9, 5, 'W'], ['fill', 23, 13, 7, 3, ' '], ['pt', 24, 14, 'f'], ['pt', 28, 14, 'f'],
-        ['rect', 30, 3, 6, 4, 'W'], ['fill', 31, 4, 4, 2, ' '], ['pt', 32, 4, 'f'],
-        ['pts', 'd', [9, 5], [16, 5], [22, 11], [31, 11], [30, 2]],
+        // Kolme tulikärpäshuonetta: rengaskäytävät, joissa kärpäset partioivat; tulpat sivuseinissä
+        ['ring', 8, 6, 8, 5, [[8, 8], [15, 8]]], ['pts', 'f', [9, 7], [14, 9]],
+        ['ring', 22, 12, 9, 5, [[22, 14], [30, 14]]], ['pts', 'f', [23, 13], [29, 15]],
+        ['ring', 30, 3, 6, 4, [[30, 4]]], ['pt', 31, 5, 'f'],
+        ['pts', 'd', [7, 8], [16, 8], [21, 14], [31, 14], [29, 4]],
         ['line', 8, 5, 15, 5, 'r'], ['line', 23, 11, 30, 11, 'r'],
       ],
     }),
@@ -65,10 +65,12 @@
       fill: { boulder: 0.14, diamond: 0.04, empty: 0.05 },
       objects: [
         ['P', 20, 2], ['X', 0, 20],
-        ['rect', 4, 8, 8, 6, 'W'], ['fill', 5, 9, 6, 4, ' '], ['pt', 6, 10, 'b'], ['pt', 9, 11, 'b'],
-        ['rect', 28, 8, 8, 6, 'W'], ['fill', 29, 9, 6, 4, ' '], ['pt', 30, 10, 'b'], ['pt', 33, 11, 'b'],
-        ['line', 5, 7, 10, 7, 'r'], ['line', 29, 7, 34, 7, 'r'],
-        ['pt', 7, 8, ' '], ['pt', 32, 8, ' '],
+        // Perhoshuoneet: rengaskäytävä, tulppa yläseinässä, sen yläpuolella maata ja kivirivi.
+        // Kaiva tulppa auki (esim. kaiva paikallaan -toiminnolla) ja pudota kivet perhosten päälle.
+        ['ring', 4, 8, 8, 6, [[7, 8]]], ['pts', 'b', [5, 9], [10, 12]],
+        ['ring', 28, 8, 8, 6, [[32, 8]]], ['pts', 'b', [29, 9], [34, 12]],
+        ['fill', 4, 7, 8, 1, '.'], ['fill', 28, 7, 8, 1, '.'],
+        ['line', 5, 6, 10, 6, 'r'], ['line', 29, 6, 34, 6, 'r'],
         ['line', 14, 16, 26, 16, 'W'], ['line', 15, 15, 25, 15, 'd'],
       ],
     }),
@@ -127,10 +129,9 @@
       fill: { boulder: 0.14, diamond: 0.04, empty: 0.05 },
       objects: [
         ['P', 2, 2], ['X', 39, 11],
-        ['rect', 12, 6, 16, 10, 'W'], ['fill', 13, 7, 14, 8, ' '],
-        ['pts', 'b', [15, 8], [24, 8], [15, 13], [24, 13], [19, 10]],
-        ['line', 13, 5, 26, 5, 'r'], ['line', 13, 4, 26, 4, 'r'],
-        ['pts', ' ', [16, 6], [20, 6], [24, 6]],
+        ['ring', 12, 6, 16, 10, [[16, 6], [20, 6], [24, 6]]],
+        ['pts', 'b', [13, 7], [26, 7], [13, 14], [26, 14], [20, 14]],
+        ['fill', 12, 5, 16, 1, '.'], ['line', 13, 4, 26, 4, 'r'], ['line', 13, 3, 26, 3, 'r'],
         ['pts', 'd', [3, 18], [36, 18], [3, 10], [36, 3], [10, 19], [30, 19]],
       ],
     }),
@@ -141,10 +142,9 @@
         ['P', 20, 11], ['X', 39, 1],
         ['rect', 17, 8, 7, 7, 'W'], ['fill', 18, 9, 5, 5, '.'],
         ['pt', 20, 8, '.'],
-        ['rect', 2, 2, 8, 5, 'W'], ['fill', 3, 3, 6, 3, ' '], ['pt', 4, 4, 'b'], ['pt', 7, 4, 'b'],
-        ['rect', 30, 15, 8, 5, 'W'], ['fill', 31, 16, 6, 3, ' '], ['pt', 32, 17, 'b'], ['pt', 35, 17, 'b'],
-        ['line', 3, 1, 8, 1, 'r'], ['line', 31, 14, 36, 14, 'r'],
-        ['pt', 5, 2, ' '], ['pt', 33, 15, ' '],
+        ['ring', 2, 2, 8, 5, [[5, 6]]], ['pts', 'b', [3, 3], [8, 5]],
+        ['ring', 30, 15, 8, 5, [[33, 15]]], ['pts', 'b', [31, 16], [36, 18]],
+        ['fill', 30, 14, 8, 1, '.'], ['line', 31, 13, 36, 13, 'r'],
       ],
     }),
     base({
@@ -173,8 +173,8 @@
         ['line', 12, 4, 28, 4, 'W'], ['line', 12, 4, 12, 8, 'W'], ['line', 28, 4, 28, 8, 'W'],
         ['fill', 13, 5, 15, 3, '.'], ['pt', 20, 4, '.'],
         ['rect', 2, 14, 7, 6, 'W'], ['fill', 3, 15, 5, 4, ' '], ['fill', 4, 16, 3, 2, 'a'], ['pt', 8, 17, '.'],
-        ['rect', 31, 14, 7, 6, 'W'], ['fill', 32, 15, 5, 4, ' '], ['pts', 'b', [33, 16], [36, 17]],
-        ['line', 32, 13, 36, 13, 'r'], ['pt', 34, 14, ' '],
+        ['ring', 31, 14, 7, 6, [[34, 14]]], ['pts', 'b', [32, 15], [36, 18]],
+        ['fill', 31, 13, 7, 1, '.'], ['line', 32, 12, 36, 12, 'r'],
         ['line', 14, 15, 26, 15, 'M'], ['fill', 14, 16, 13, 2, ' '], ['line', 14, 18, 26, 18, 'W'],
         ['fill', 14, 11, 13, 4, 'r'], ['fill', 14, 9, 13, 2, '.'],
         ['pt', 13, 15, 'W'], ['pt', 27, 15, 'W'], ['pt', 13, 16, 'W'], ['pt', 27, 16, 'W'], ['pt', 13, 17, 'W'], ['pt', 27, 17, 'W'],
@@ -235,6 +235,16 @@
       } else if (k === 'fill') {
         const [, x, y, rw, rh, ch] = o;
         for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++) put(x + i, y + j, ch);
+      } else if (k === 'ring') {
+        // Rengashuone: tiiliseinä, sen sisällä yhden ruudun levyinen tyhjä käytävä ja tiilikeskus.
+        // Ötökät partioivat käytävää seinää pitkin. Tulpat (maa) ulkoseinässä ovat kaivettavia aukkoja.
+        const [, x, y, rw, rh, plugs] = o;
+        for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++) {
+          const inner = i >= 1 && i <= rw - 2 && j >= 1 && j <= rh - 2;
+          const center = i >= 2 && i <= rw - 3 && j >= 2 && j <= rh - 3;
+          put(x + i, y + j, center ? 'W' : inner ? ' ' : 'W');
+        }
+        for (const [px, py] of (plugs || [])) put(px, py, '.');
       } else if (k === 'maze') {
         // Tiiliseinäruudukko, jossa satunnaisia aukkoja: parillisilla riveillä/sarakkeilla seinä.
         const [, x, y, mw, mh] = o;
