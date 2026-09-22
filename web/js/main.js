@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.5.2';
+  const VERSION = '1.6.0';
   const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
@@ -62,6 +62,7 @@
     $('#optSnapLeft').addEventListener('click', () => setSetting('snapSide', 'left'));
     $('#optSnapRight').addEventListener('click', () => setSetting('snapSide', 'right'));
     $('#btnContinue').addEventListener('click', () => startLevel(app.save.selected));
+    $('#btnResume').addEventListener('click', resumeFromMenu);
     $('#version').textContent = 'v' + VERSION;
 
     setupInstall();
@@ -186,7 +187,14 @@
     $('#totalScore').textContent = total;
     $('#deaths').textContent = app.save.deaths;
     const sel = Math.min(app.save.selected, BD.CAVES.length);
-    $('#btnContinue').textContent = `▶ Pelaa: ${sel}. ${BD.CAVES[sel - 1].name}`;
+    const inProgress = gameInProgress();
+    $('#btnResume').hidden = !inProgress;
+    if (inProgress) {
+      const c = app.cave;
+      $('#btnResume').textContent = `▶ Jatka keskeneräistä luolaa: ${app.level}. ${c.def.name} (💎 ${c.collected}/${c.needed} · ⏱ ${c.timeLeft})`;
+    }
+    $('#btnContinue').textContent = (inProgress ? '↻ Uusi peli: ' : '▶ Pelaa: ') + `${sel}. ${BD.CAVES[sel - 1].name}`;
+    $('#btnContinue').classList.toggle('primary', !inProgress);
   }
 
   // ---------- Pelin kulku ----------
@@ -266,13 +274,31 @@
     } catch (e) { return false; }
   }
 
+  function gameInProgress() {
+    return !!(app.cave && (app.cave.state === 'playing' || app.cave.state === 'spawning'));
+  }
+
   function toMenu() {
-    if (app.updateReady) { location.reload(); return; }
     hideOverlay();
     app.mode = 'menu';
-    app.cave = null;
+    // Kesken oleva luola säilyy valikon takana, jotta asetuksia voi muuttaa ja jatkaa
+    if (!gameInProgress()) app.cave = null;
+    if (app.updateReady && !app.cave) { location.reload(); return; }
+    app.input.clearTouch();
     buildMenu();
     showScreen('menu');
+  }
+
+  function resumeFromMenu() {
+    if (!gameInProgress()) return;
+    showScreen('game');
+    rebuildSprites();
+    app.cam.init = false;
+    app.acc = 0; app.pacc = 0;
+    app.input.clearTouch();
+    app.mode = 'play';
+    app.last = performance.now();
+    requestFullscreenIfPossible();
   }
 
   function onDead() {
