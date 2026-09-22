@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.5.0';
+  const VERSION = '1.5.1';
   const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
@@ -51,6 +51,8 @@
     $('#optSpeedSlow').addEventListener('click', () => setSetting('speed', 'slow'));
     $('#optSpeedNormal').addEventListener('click', () => setSetting('speed', 'normal'));
     $('#optSpeedFast').addEventListener('click', () => setSetting('speed', 'fast'));
+    $('#optSnapLeft').addEventListener('click', () => setSetting('snapSide', 'left'));
+    $('#optSnapRight').addEventListener('click', () => setSetting('snapSide', 'right'));
     $('#btnContinue').addEventListener('click', () => startLevel(app.save.selected));
     $('#version').textContent = 'v' + VERSION;
 
@@ -75,6 +77,9 @@
     $('#optSpeedSlow').classList.toggle('sel', s.speed === 'slow');
     $('#optSpeedNormal').classList.toggle('sel', !s.speed || s.speed === 'normal');
     $('#optSpeedFast').classList.toggle('sel', s.speed === 'fast');
+    $('#optSnapLeft').classList.toggle('sel', s.snapSide === 'left');
+    $('#optSnapRight').classList.toggle('sel', s.snapSide !== 'left');
+    document.body.classList.toggle('snapLeft', s.snapSide === 'left');
     $('#optDpad').classList.toggle('sel', s.controls === 'dpad');
     $('#optJoy').classList.toggle('sel', s.controls === 'joystick');
     $('#optModern').classList.toggle('sel', s.gfx !== 'retro');

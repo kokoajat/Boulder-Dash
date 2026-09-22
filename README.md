@@ -23,7 +23,7 @@ oikeana Android-sovelluksena (`android/`, WebView-kääre).
 - Kaksi grafiikkatyyliä: **Moderni** (resoluutiosta riippumaton vektorigrafiikka, sulava
   liike, partikkelit) ja **Retro** (8×8-pikseligrafiikka).
   - **Kaiva paikallaan** (alkuperäisen tulinappi + suunta): ⛏-painike ohjainten vieressä
-    tai näppäimistöllä Ctrl (tai Shift / välilyönti) + nuoli. Painikkeen ollessa pohjassa
+    (puoli valittavissa asetuksista) tai näppäimistöllä Ctrl (tai Shift / välilyönti) + nuoli. Painikkeen ollessa pohjassa
     Rockford ei liiku, ja jokainen suuntapainallus kaivaa tai poimii täsmälleen yhden ruudun.
 - Näppäimistöllä (nuolet / WASD, Esc = tauko) peli toimii myös tietokoneella.
 - Syntetisoidut retroäänet (kytkettävissä pois), toimii ilman verkkoyhteyttä.
