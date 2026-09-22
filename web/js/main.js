@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.5.1';
+  const VERSION = '1.5.2';
   const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
@@ -36,7 +36,15 @@
     document.addEventListener('pointerdown', () => app.audio.unlock(), { passive: true });
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('resize', resize);
-    document.addEventListener('visibilitychange', () => { if (document.hidden && app.mode === 'play') pauseGame(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { if (app.mode === 'play') pauseGame(); }
+      else rebuildSprites(); // selain on voinut tyhjentää canvasit taustalla
+    });
+    window.addEventListener('pageshow', rebuildSprites);
+    window.addEventListener('focus', rebuildSprites);
+    // Canvas 2D -kontekstin menetys (Android): rakennetaan grafiikka uudelleen
+    app.canvas.addEventListener('contextlost', (e) => { e.preventDefault(); });
+    app.canvas.addEventListener('contextrestored', rebuildSprites);
 
     $('#btnPause').addEventListener('click', () => { if (app.mode === 'play') pauseGame(); });
     $('#btnReset').addEventListener('click', resetProgress);
@@ -240,7 +248,23 @@
       { label: 'Valikko', onClick: toMenu },
     ]);
   }
-  function resumeGame() { hideOverlay(); app.mode = 'play'; app.last = performance.now(); }
+  function resumeGame() { hideOverlay(); rebuildSprites(); app.mode = 'play'; app.last = performance.now(); }
+
+  /** Rakentaa spritet uudelleen (halpa toimenpide). */
+  function rebuildSprites() {
+    app.spriteKey = '';
+    resize();
+  }
+
+  /** Tarkistaa vartijapikselistä, ovatko spritecanvasit tyhjentyneet (Android voi vapauttaa ne). */
+  function spritesLost() {
+    try {
+      const c = app.sprites && app.sprites.steel && app.sprites.steel[0];
+      if (!c) return true;
+      const d = c.getContext('2d').getImageData(c.width >> 1, c.height >> 1, 1, 1).data;
+      return d[3] === 0;
+    } catch (e) { return false; }
+  }
 
   function toMenu() {
     if (app.updateReady) { location.reload(); return; }
@@ -428,6 +452,16 @@
   }
 
   function render(dt) {
+    app.checkAcc = (app.checkAcc || 0) + dt;
+    if (app.checkAcc > 2000) { app.checkAcc = 0; if (spritesLost()) rebuildSprites(); }
+    try { renderCave(dt); } catch (err) {
+      // Yksittäinen piirtovirhe ei saa pimentää peliä pysyvästi
+      if (!app.renderErrorLogged) { console.error('render', err); app.renderErrorLogged = true; }
+      rebuildSprites();
+    }
+  }
+
+  function renderCave(dt) {
     const cave = app.cave, ctx = app.ctx, tile = app.tile;
     const W = app.canvas.width, H = app.canvas.height;
     const cw = cave.w * tile, ch = cave.h * tile;
