@@ -74,7 +74,7 @@
         <div><span class="statVal" id="deaths">0</span><span class="statLbl">kuolemaa</span></div>
         <div><span class="statVal">∞</span><span class="statLbl">elämää</span></div>
       </div>
-      <p class="help">Näppäimistö: nuolet tai WASD · Esc = tauko</p>
+      <p class="help">Näppäimistö: nuolet tai WASD · Ctrl + nuoli = kaiva paikallaan · Esc = tauko</p>
       <div class="footer">
         <button id="btnReset" class="btn small danger">Nollaa edistyminen</button>
         <span class="version" id="version"></span>
@@ -110,6 +110,7 @@
         <button class="dbtn right" data-dx="1" data-dy="0" aria-label="Oikea">▶</button>
         <button class="dbtn down" data-dx="0" data-dy="1" aria-label="Alas">▼</button>
       </div>
+      <button id="btnSnap" class="snapBtn" aria-label="Kaiva paikallaan"><span class="ico">⛏</span><span class="lbl">KAIVA</span></button>
       <div id="joystick" hidden>
         <div class="joyHint">Kosketa ja vedä</div>
         <div id="joyBase" hidden>

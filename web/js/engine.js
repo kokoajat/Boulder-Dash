@@ -234,6 +234,13 @@
         this.rf.x = nx; this.rf.y = ny; this.rf.moved = true;
       };
 
+      // "Snap": kaiva tai poimi viereinen ruutu paikallaan pysyen (alkuperäisen tulinappi + suunta)
+      if (input.snap) {
+        if (target === T.DIRT) { this.set(nx, ny, T.EMPTY); this.sound('dig'); }
+        else if (target === T.DIAMOND || target === T.DIAMOND_F) { this.collectDiamond(nx, ny); this.set(nx, ny, T.EMPTY); }
+        return;
+      }
+
       switch (target) {
         case T.EMPTY: move(); break;
         case T.DIRT: move(); this.sound('dig'); break;

@@ -178,8 +178,8 @@ body.retro #game { image-rendering: pixelated; image-rendering: crisp-edges; }
 body:not(.touch) #controls { height: 0; border: 0; overflow: hidden; }
 
 #dpad {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(62vw, 240px, 90%); aspect-ratio: 1; max-height: 92%;
+  position: absolute; left: calc(50% - clamp(28px, 7vw, 40px)); top: 50%; transform: translate(-50%, -50%);
+  width: min(58vw, 240px, 90%); aspect-ratio: 1; max-height: 92%;
   display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr;
   gap: 5px; touch-action: none;
 }
@@ -195,6 +195,16 @@ body:not(.touch) #controls { height: 0; border: 0; overflow: hidden; }
 .dbtn.right { grid-column: 3; grid-row: 2; }
 .dbtn.down { grid-column: 2; grid-row: 3; }
 
+.snapBtn {
+  position: absolute; right: max(14px, var(--sar)); top: 50%; transform: translateY(-50%); z-index: 3;
+  width: clamp(62px, 16vw, 84px); height: clamp(62px, 16vw, 84px); border-radius: 50%;
+  background: var(--panel2); border: 1px solid rgba(255, 200, 61, 0.45); color: var(--accent2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  cursor: pointer; touch-action: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.snapBtn .ico { font-size: 26px; line-height: 1; }
+.snapBtn .lbl { font-size: 9px; letter-spacing: 1.5px; font-weight: 800; }
+.snapBtn.on { background: linear-gradient(135deg, #ffd85a, #e0a01c); color: #3a2600; border-color: transparent; box-shadow: 0 0 22px rgba(255, 200, 61, 0.6); }
 #joystick { position: absolute; inset: 0; touch-action: none; }
 #joystick.active .joyHint { display: none; }
 .joyHint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #3a4054; font-size: 14px; pointer-events: none; }

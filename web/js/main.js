@@ -3,7 +3,7 @@
   'use strict';
   const T = BD.T;
   const $ = (s) => document.querySelector(s);
-  const VERSION = '1.4.0';
+  const VERSION = '1.5.0';
   const PLAYER_SPEED = { slow: 1.4, normal: 1.0, fast: 0.7 }; // kerroin luolan tahtiin nähden
 
   const app = {
@@ -24,7 +24,7 @@
     app.ctx = app.canvas.getContext('2d');
     app.audio = new BD.Audio(() => app.save.settings.sound);
     app.input = new BD.Input({
-      dpad: $('#dpad'), joystick: $('#joystick'), joyBase: $('#joyBase'), joyKnob: $('#joyKnob'),
+      dpad: $('#dpad'), joystick: $('#joystick'), joyBase: $('#joyBase'), joyKnob: $('#joyKnob'), snap: $('#btnSnap'),
     }, {
       onPause: () => { if (app.mode === 'play') pauseGame(); else if (app.mode === 'pause') resumeGame(); },
       onAnyInput: () => { app.audio.unlock(); },
@@ -194,6 +194,7 @@
     app.shake = 0;
     $('#toast').hidden = true;
     app.input.clearTouch();
+    app.input.setSnapHeld(false);
     showScreen('game');
     resize();
     app.mode = 'intro';
@@ -346,7 +347,8 @@
       n = 0;
       while (app.pacc >= pInterval && n++ < 4) {
         app.pacc -= pInterval;
-        app.cave.tickPlayer(dir);
+        const snap = app.input.takeSnap();
+        app.cave.tickPlayer(snap ? { dx: snap.dx, dy: snap.dy, snap: true } : dir);
       }
       if (app.cave.state === 'dead') onDead();
       else if (app.cave.state === 'won') onWon();

@@ -22,9 +22,13 @@
       this.activeId = null;
       this.joy = { cx: 0, cy: 0, radius: 48, dead: 14 };
       this.dpadDead = 0.18;
+      this.snapHeld = false;      // kaivupainike / Ctrl pohjassa
+      this.pendingSnap = null;    // odottava kaivutoiminto {dx,dy}
+      this.curDir = { dx: 0, dy: 0 };
       this.bindDpad();
       this.bindJoystick();
       this.bindKeyboard();
+      this.bindSnap();
     }
 
     setMode(mode) {
@@ -51,7 +55,7 @@
       base.style.margin = `${-size / 2}px 0 0 ${-size / 2}px`;
     }
 
-    getDir() {
+    rawDir() {
       if (this.touch.active) return { dx: this.touch.dx, dy: this.touch.dy };
       if (this.keys.length) {
         const k = KEYMAP[this.keys[this.keys.length - 1]];
@@ -60,15 +64,60 @@
       return { dx: 0, dy: 0 };
     }
 
+    /** Liikesuunta. Kaivupainikkeen ollessa pohjassa Rockford ei liiku. */
+    getDir() {
+      if (this.snapHeld) return { dx: 0, dy: 0 };
+      return this.rawDir();
+    }
+
+    /** Palauttaa odottavan kaivutoiminnon kerran ja tyhjentää sen. */
+    takeSnap() {
+      const s = this.pendingSnap;
+      this.pendingSnap = null;
+      return s;
+    }
+
+    /** Kutsutaan aina kun suunta muuttuu: kaivupainike pohjassa + uusi suunta = yksi kaivu. */
+    dirChanged() {
+      const d = this.rawDir();
+      if (d.dx === this.curDir.dx && d.dy === this.curDir.dy) return;
+      this.curDir = d;
+      if (this.snapHeld && (d.dx || d.dy)) this.pendingSnap = { dx: d.dx, dy: d.dy };
+    }
+
+    setSnapHeld(held) {
+      if (held === this.snapHeld) return;
+      this.snapHeld = held;
+      this.els.snap.classList.toggle('on', held);
+      const d = this.rawDir();
+      if (held && (d.dx || d.dy)) this.pendingSnap = { dx: d.dx, dy: d.dy };
+    }
+
+    bindSnap() {
+      const b = this.els.snap;
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (this.cb.onAnyInput) this.cb.onAnyInput();
+        try { b.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        this.setSnapHeld(true);
+      });
+      const end = () => this.setSnapHeld(false);
+      b.addEventListener('pointerup', end);
+      b.addEventListener('pointercancel', end);
+      b.addEventListener('lostpointercapture', end);
+    }
+
     clearTouch() {
       this.touch.active = false; this.touch.dx = 0; this.touch.dy = 0;
       this.activeId = null;
+      this.dirChanged();
       for (const b of this.els.dpad.querySelectorAll('.dbtn')) b.classList.remove('on');
       this.els.joyBase.hidden = true;
     }
 
     setTouchDir(dx, dy) {
       this.touch.active = true; this.touch.dx = dx; this.touch.dy = dy;
+      this.dirChanged();
     }
 
     // ---- D-pad ----
@@ -170,16 +219,24 @@
           if (this.cb.onPause) this.cb.onPause();
           return;
         }
+        if (e.key === 'Control' || e.key === 'Shift' || e.key === ' ') {
+          e.preventDefault();
+          this.setSnapHeld(true);
+          return;
+        }
         if (!KEYMAP[e.key]) return;
         e.preventDefault();
+        if (e.repeat) return;
         if (this.cb.onAnyInput) this.cb.onAnyInput();
         if (!this.keys.includes(e.key)) this.keys.push(e.key);
+        this.dirChanged();
       });
       window.addEventListener('keyup', (e) => {
+        if (e.key === 'Control' || e.key === 'Shift' || e.key === ' ') { this.setSnapHeld(false); return; }
         const i = this.keys.indexOf(e.key);
-        if (i >= 0) this.keys.splice(i, 1);
+        if (i >= 0) { this.keys.splice(i, 1); this.dirChanged(); }
       });
-      window.addEventListener('blur', () => { this.keys.length = 0; this.clearTouch(); });
+      window.addEventListener('blur', () => { this.keys.length = 0; this.setSnapHeld(false); this.clearTouch(); });
     }
   }
 
